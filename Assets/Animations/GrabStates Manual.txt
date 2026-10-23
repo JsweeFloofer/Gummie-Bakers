@@ -1,0 +1,7 @@
+GrabStates:
+0 - Not Grabbing/Holding anything
+1 - Grabbing (grab sprite but shaking, transfers to 2 once anim finishes)
+2 - Grabbed (grab sprite but idle)
+3 - Pulling
+4 - Tossing (cant move till animation finishes)
+5 - Holding (can walk)
