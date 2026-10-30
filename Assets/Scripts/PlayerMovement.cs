@@ -19,6 +19,15 @@ public class PlayerMovement : NetworkBehaviour
 
     public bool IsMovementLocked { get; private set; }
 
+    InputAction pickUpAction;
+
+    public GameObject pickUpCollider;
+
+    [Header("Automated Testing")]
+    public bool useTestInput;
+
+    private Vector2 testMoveDir;
+
 
     public override void OnNetworkSpawn()
     {
@@ -31,6 +40,19 @@ public class PlayerMovement : NetworkBehaviour
         if (!IsOwner) return;
 
         moveAction = InputSystem.actions.FindAction("Move");
+        pickUpAction = InputSystem.actions.FindAction("Interact");
+
+        if (moveAction != null && !moveAction.enabled)
+        {
+            moveAction.Enable();
+        }
+
+        Debug.Log(
+            "Player initialized. IsOwner: " + IsOwner +
+            " | Move Action Found: " + (moveAction != null) +
+            " | Move Action Enabled: " + (moveAction != null && moveAction.enabled)
+        );
+
 
         if (anim != null)
         {
@@ -51,11 +73,20 @@ public class PlayerMovement : NetworkBehaviour
             return;
         }
 
-        if (moveAction != null)
+        if (useTestInput)
+        {
+            moveDir = testMoveDir;
+        }
+        else if (moveAction != null)
         {
             moveDir = moveAction.ReadValue<Vector2>();
         }
-        
+
+        if (pickUpAction.WasPressedThisFrame())
+        {
+            StartCoroutine(ActivatePickUpCollider());
+        }
+
     }
 
     void FixedUpdate()
@@ -97,5 +128,20 @@ public class PlayerMovement : NetworkBehaviour
         {
             moveDir = Vector2.zero;
         }
+    }
+
+    private System.Collections.IEnumerator ActivatePickUpCollider()
+    {
+        pickUpCollider.SetActive(true);
+
+        //wait one physics frame so trigger detection can occur
+        yield return new WaitForFixedUpdate();
+
+        pickUpCollider.SetActive(false);
+    }
+
+    public void SetTestMovementInput(Vector2 input)
+    {
+        testMoveDir = input;
     }
 }

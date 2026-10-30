@@ -22,6 +22,8 @@ public class IngredientCrate : NetworkBehaviour
 
     public int IngredientCount => ingredients.Length;
 
+    public bool HasBeenInteractedWith { get; private set; }
+
     public string GetIngredientName(int id)
     {
         return ingredients[id].displayName;
@@ -36,6 +38,8 @@ public class IngredientCrate : NetworkBehaviour
         if (!IsClient || !IsSpawned) return;
 
         RequestOpenRpc();
+
+        HasBeenInteractedWith = true;
     }
 
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
