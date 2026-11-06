@@ -61,7 +61,7 @@ public class Ingredient : NetworkBehaviour
 
     private void UpdateAppearance(int id)
     {
-        if (spriteRenderer == null || visuals == null || id == -1)
+        if (spriteRenderer == null || visuals == null)
             return;
 
         foreach (IngredientVisual visual in visuals)
@@ -73,7 +73,6 @@ public class Ingredient : NetworkBehaviour
             }
         }
 
-       
         Debug.LogWarning($"No sprite configured for ingredient ID {id}.");
     }
 

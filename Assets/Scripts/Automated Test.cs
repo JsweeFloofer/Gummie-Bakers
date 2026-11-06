@@ -10,8 +10,6 @@ public class AutomatedGameTester : MonoBehaviour
 {
     [Header("UI")]
     [SerializeField] private Button hostButton;
-    [SerializeField] private GameObject buttons;
-    [SerializeField] private Button[] ingredientButtons = new Button[3];
 
     [Header("Test Settings")]
     [SerializeField] private float initialDelay = 1f;
@@ -19,15 +17,19 @@ public class AutomatedGameTester : MonoBehaviour
     [SerializeField] private float movementThreshold = 0.2f;
     [SerializeField] private float networkTimeout = 15f;
 
+    private Keyboard virtualKeyboard;
     private NetworkObject player;
 
     private PlayerMovement playerMovement;
-    private PlayerInteraction playerInteraction;
 
     private IEnumerator Start()
     {
         Debug.Log("-- STARTING AUTOMATED GAME TESTS --");
 
+        // Create a virtual keyboard for simulated inputs
+        virtualKeyboard = InputSystem.AddDevice<Keyboard>();
+
+        TestKeyboardInput();
 
         yield return new WaitForSeconds(initialDelay);
 
@@ -117,110 +119,70 @@ public class AutomatedGameTester : MonoBehaviour
 
         Debug.Log("Automated movement control enabled!");
 
-        playerInteraction = player.GetComponent<PlayerInteraction>();
-
-        if (playerInteraction == null)
-        {
-            Fail("PlayerInteraction component not found!");
-            yield break;
-        }
-
-        playerInteraction.useTestInteraction = true;
-
-        Debug.Log("Automated interaction control enabled!");
 
         yield return new WaitForSeconds(0.5f);
 
         Debug.Log("-- TESTING MOVEMENT --");
 
 
-        yield return StartCoroutine(TestMovement("Moving Up", Vector2.up, Vector3.forward));
+        yield return StartCoroutine(TestMovement(
+            "Moving Up", Key.W, Vector3.forward));
 
         if (player == null) yield break;
 
-        yield return StartCoroutine(TestMovement("Moving Down", Vector2.down, Vector3.back));
+        yield return StartCoroutine(TestMovement(
+            "Moving Down", Key.S, Vector3.back));
 
         if (player == null) yield break;
 
-        yield return StartCoroutine(TestMovement("Moving Left", Vector2.left, Vector3.left));
+        yield return StartCoroutine(TestMovement(
+            "Moving Left", Key.A, Vector3.left));
 
         if (player == null) yield break;
 
-        yield return StartCoroutine(TestMovement("Moving Right", Vector2.right, Vector3.right));
-        yield return StartCoroutine(TestMovement("Moving Right", Vector2.right, Vector3.right));
+        yield return StartCoroutine(TestMovement(
+            "Moving Right", Key.D, Vector3.right));
 
-        yield return new WaitForSeconds(0.5f);
 
-        Debug.Log("-- TESTING INTERACTION --");
 
-        
+        ReleaseKeyboard();
 
-        yield return StartCoroutine(TestInteraction());
-
-        yield return new WaitForSeconds(0.5f);
-
-        SetIngredientButtons();
-
-        yield return new WaitForSeconds(0.5f);
-
-        Debug.Log("Testing ingredient spawn ID: " + 0);
-        ingredientButtons[0].onClick.Invoke();
-
-        yield return new WaitForSeconds(0.5f);
-
-        yield return StartCoroutine(TestInteraction());
-
-        yield return new WaitForSeconds(0.5f);
-
-        SetIngredientButtons();
-
-        yield return new WaitForSeconds(0.5f);
-
-        Debug.Log("Testing ingredient spawn ID: " + 1);
-        ingredientButtons[1].onClick.Invoke();
-
-        yield return new WaitForSeconds(0.5f);
-
-        yield return StartCoroutine(TestInteraction());
-
-        yield return new WaitForSeconds(0.5f);
-
-        SetIngredientButtons();
-
-        yield return new WaitForSeconds(0.5f);
-
-        Debug.Log("Testing ingredient spawn ID: " + 2);
-        ingredientButtons[2].onClick.Invoke();
 
         Debug.Log("-- ALL AUTOMATED TESTS COMPLETED! --");
 
     }
 
-    private IEnumerator TestMovement(string testName, Vector2 inputDirection, Vector3 expectedDirection)
+    private IEnumerator TestMovement(
+        string testName,
+        Key key,
+        Vector3 expectedDirection)
     {
         Debug.Log("Testing " + testName + "...");
 
         if (player == null || !player.IsSpawned)
         {
-            Fail("Player disappeared!");
+            Fail("Player disappeared during movement test!");
             yield break;
         }
 
         Vector3 startingPosition = player.transform.position;
 
-        // Apply movement input
-        playerMovement.SetTestMovementInput(inputDirection);
+        // Press the simulated keyboard key.
+        InputSystem.QueueStateEvent(
+            virtualKeyboard,
+            new KeyboardState(key)
+        );
 
-        // Hold the input for set duration
+        // Hold the key for the configured duration.
         yield return new WaitForSeconds(movementDuration);
 
-        // Release movement input
-        playerMovement.SetTestMovementInput(Vector2.zero);
+        // Release all keys.
+        ReleaseKeyboard();
 
+        // Allow physics to finish processing.
         yield return new WaitForFixedUpdate();
 
         Vector3 endingPosition = player.transform.position;
-
         Vector3 movement = endingPosition - startingPosition;
 
         float distanceMoved = Vector3.Dot(
@@ -238,50 +200,61 @@ public class AutomatedGameTester : MonoBehaviour
         else
         {
             Debug.LogError(
-                testName + " FAILED! Actual movement: " + movement
+                testName + " FAILED! Expected movement in direction " +
+                expectedDirection +
+                " but actual movement was " + movement
             );
         }
     }
 
-    private IEnumerator TestInteraction()
+    private void ReleaseKeyboard()
     {
-        Debug.Log("Testing Interact...");
+        if (virtualKeyboard == null)
+            return;
 
-        if (player == null || !player.IsSpawned)
-        {
-            Fail("Player disappeared!");
-            yield break;
-        }
-
-        if (playerInteraction == null)
-        {
-            Fail("PlayerInteraction component missing!");
-            yield break;
-        }
-
-        // Trigger the interaction
-        playerInteraction.TriggerTestInteraction();
-
-        // Wait for Update() to process the interaction
-        yield return null;
-
-        // Give any resulting gameplay logic time to execute
-        yield return new WaitForSeconds(0.2f);
-
-        Debug.Log("Interact test completed!");
-    }
-
-    private void SetIngredientButtons()
-    {
-        for (int i = 0; i < ingredientButtons.Length; i++)
-        {
-            
-            ingredientButtons[i] = buttons.transform.GetChild(i).GetComponent<Button>();
-        }
+        InputSystem.QueueStateEvent(
+            virtualKeyboard,
+            new KeyboardState()
+        );
     }
 
     private void Fail(string message)
     {
         Debug.LogError("[AUTOMATED TEST FAILED] " + message);
+        ReleaseKeyboard();
+    }
+
+    private void OnDestroy()
+    {
+        ReleaseKeyboard();
+
+        if (virtualKeyboard != null &&
+            virtualKeyboard.added)
+        {
+            InputSystem.RemoveDevice(virtualKeyboard);
+        }
+    }
+
+    private void TestKeyboardInput()
+    {
+        InputSystem.QueueStateEvent(
+            virtualKeyboard,
+            new KeyboardState(Key.W)
+        );
+
+        InputSystem.Update();
+
+        var moveAction = InputSystem.actions.FindAction("Move");
+
+        if (moveAction == null)
+        {
+            Debug.LogError("Move action NOT FOUND!");
+            return;
+        }
+
+        Debug.Log("Simulated Move Input: " + moveAction.ReadValue<Vector2>());
+
+        ReleaseKeyboard();
+        InputSystem.Update();
     }
 }

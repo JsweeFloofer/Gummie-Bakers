@@ -6,13 +6,10 @@ public class PlayerInteraction : NetworkBehaviour
 {
     private PlayerMovement playerMovement;
     
-    [SerializeField] private IngredientCrate crate;
+    [SerializeField] 
+    private IngredientCrate crate;
 
     InputAction interactAction;
-
-    [Header("Automated Testing")]
-    public bool useTestInteraction;
-    private bool testInteractPressed;
 
     private void Awake()
     {
@@ -31,45 +28,17 @@ public class PlayerInteraction : NetworkBehaviour
     void Update()
     {
         if (!IsOwner) return;
-
+        
         if (playerMovement != null && playerMovement.IsMovementLocked)
         {
-            testInteractPressed = false;
             return;
         }
 
-        bool interactPressed = false;
-
-        if (useTestInteraction)
+        if (interactAction != null && interactAction.WasPressedThisFrame() && crate != null)
         {
-            interactPressed = testInteractPressed;
-            testInteractPressed = false;
-        }
-        else if (interactAction != null)
-        {
-            interactPressed = interactAction.WasPressedThisFrame();
-        }
-
-
-
-        if ((interactAction != null && interactAction.WasPressedThisFrame() && crate != null) || interactPressed)
-        {
-            // Debug.Log("AAA"); // AAAAAAAAAAAAAAAAAAA anyways hi
+            Debug.Log("AAA"); // AAAAAAAAAAAAAAAAAAA anyways hi
             crate.Interact();
-
-            if (crate.HasBeenInteractedWith)
-            {
-                Debug.Log("Interact works!");
-            }
-            else
-            {
-                Debug.LogError("Interact FAILED!");
-            }
         }
     }
 
-    public void TriggerTestInteraction()
-    {
-        testInteractPressed = true;
-    }
 }
